@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>座標獵人</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d0d;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 2rem;
+      color: #ff8c00;
+      letter-spacing: 4px;
+      margin-bottom: 6px;
+      text-shadow: 0 0 12px #ff8c0055;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      margin-bottom: 24px;
+    }
+    .game-area {
+      display: flex;
+      gap: 28px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    canvas {
+      border: 1px solid #2a2a2a;
+      background: #111;
+      border-radius: 4px;
+      display: block;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 210px;
+    }
+    .stat-row { display: flex; gap: 10px; }
+    .stat-box {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    .stat-label {
+      font-size: 0.65rem;
+      color: #555;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .stat-value {
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #ff8c00;
+      line-height: 1;
+    }
+    #timer.warning {
+      color: #ff3333;
+      animation: blink 0.6s infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.4; } }
+
+    .input-area { display: flex; flex-direction: column; gap: 8px; }
+    .input-label { font-size: 0.72rem; color: #666; letter-spacing: 1px; }
+    .input-row { display: flex; gap: 8px; }
+    #guess-input {
+      flex: 1;
+      background: #1a1a1a;
+      border: 2px solid #333;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 1.05rem;
+      padding: 8px 10px;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #guess-input:focus { border-color: #ff8c00; }
+    #guess-input.hit { border-color: #00cc55; }
+    #guess-input.miss { border-color: #cc2200; }
+    #guess-input:disabled { opacity: 0.4; }
+
+    .btn {
+      background: #ff8c00;
+      color: #000;
+      border: none;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      font-weight: bold;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #ffaa33; }
+    .btn:disabled { background: #2a2a2a; color: #444; cursor: default; }
+    .btn-outline {
+      background: transparent;
+      color: #666;
+      border: 1px solid #333;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 7px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+      width: 100%;
+    }
+    .btn-outline:hover { border-color: #ff8c00; color: #ff8c00; }
+
+    #feedback {
+      font-size: 0.82rem;
+      min-height: 18px;
+      letter-spacing: 0.5px;
+    }
+    #feedback.hit { color: #00cc55; }
+    #feedback.miss { color: #ff4444; }
+    #feedback.warn { color: #ffcc00; }
+    #feedback.err { color: #ff8888; }
+
+    .hits-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 10px 14px;
+      flex: 1;
+      min-height: 80px;
+    }
+    .hits-label {
+      font-size: 0.65rem;
+      color: #555;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hit-item {
+      font-size: 0.82rem;
+      color: #ff8c00;
+      line-height: 1.7;
+    }
+
+    /* overlay */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #overlay.show { display: flex; }
+    .result-box {
+      background: #111;
+      border: 2px solid #ff8c00;
+      border-radius: 12px;
+      padding: 44px 56px;
+      text-align: center;
+      box-shadow: 0 0 40px #ff8c0033;
+    }
+    .result-title {
+      font-size: 1.1rem;
+      color: #ff8c00;
+      letter-spacing: 6px;
+      margin-bottom: 8px;
+    }
+    .result-score {
+      font-size: 4.5rem;
+      font-weight: bold;
+      color: #fff;
+      line-height: 1;
+      margin: 8px 0;
+    }
+    .result-sub {
+      color: #888;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+  <h1>⊕ 座標獵人</h1>
+  <p class="subtitle">COORDINATE HUNTER — 找出隱藏的 10 個座標</p>
+
+  <div class="game-area">
+    <canvas id="grid" width="440" height="440"></canvas>
+
+    <div class="panel">
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-label">得分</div>
+          <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">時間</div>
+          <div class="stat-value" id="timer">60</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-label">輸入座標（格式：x,y）</div>
+        <div class="input-row">
+          <input type="text" id="guess-input" placeholder="2,-3" maxlength="8" autocomplete="off" />
+          <button class="btn" id="submit-btn">射擊</button>
+        </div>
+        <div id="feedback"></div>
+      </div>
+
+      <div class="hits-box">
+        <div class="hits-label">命中座標</div>
+        <div id="hits-list"></div>
+      </div>
+
+      <button class="btn-outline" id="new-game-btn">重新開始</button>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div class="result-box">
+      <div class="result-title">— 結算 —</div>
+      <div class="result-score" id="final-score">0 / 10</div>
+      <div class="result-sub" id="result-msg"></div>
+      <button class="btn" id="restart-btn" style="font-size:1rem;padding:10px 28px;">再玩一次</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('grid');
+    const ctx = canvas.getContext('2d');
+    const CELL = 40;
+    const OX = 220, OY = 220; // origin pixel
+
+    let targets = [], hits = new Set();
+    let score = 0, timeLeft = 60;
+    let timerID = null, gameActive = false;
+
+    function toCanvas(x, y) {
+      return { cx: OX + x * CELL, cy: OY - y * CELL };
+    }
+
+    function genTargets() {
+      const pool = new Set();
+      while (pool.size < 10) {
+        const x = Math.floor(Math.random() * 11) - 5;
+        const y = Math.floor(Math.random() * 11) - 5;
+        pool.add(`${x},${y}`);
+      }
+      return [...pool];
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, 440, 440);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, 440, 440);
+
+      // grid lines
+      for (let i = -5; i <= 5; i++) {
+        const isAxis = i === 0;
+        ctx.strokeStyle = isAxis ? '#555' : '#222';
+        ctx.lineWidth = isAxis ? 1.5 : 1;
+
+        ctx.beginPath();
+        ctx.moveTo(OX + i * CELL, 20);
+        ctx.lineTo(OX + i * CELL, 420);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(20, OY - i * CELL);
+        ctx.lineTo(420, OY - i * CELL);
+        ctx.stroke();
+      }
+
+      // axis labels
+      ctx.font = '11px Courier New';
+      for (let i = -5; i <= 5; i++) {
+        if (i === 0) continue;
+        ctx.fillStyle = '#444';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(i, OX + i * CELL, OY + 5);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(i, OX - 5, OY - i * CELL);
+      }
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('0', OX - 4, OY + 4);
+
+      // grid dots
+      for (let x = -5; x <= 5; x++) {
+        for (let y = -5; y <= 5; y++) {
+          const { cx, cy } = toCanvas(x, y);
+          ctx.fillStyle = '#2a2a2a';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // hit markers
+      hits.forEach(coord => {
+        const [x, y] = coord.split(',').map(Number);
+        const { cx, cy } = toCanvas(x, y);
+
+        ctx.shadowColor = '#ff8c00';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#ff8c00';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - 4, cy - 4); ctx.lineTo(cx + 4, cy + 4);
+        ctx.moveTo(cx + 4, cy - 4); ctx.lineTo(cx - 4, cy + 4);
+        ctx.stroke();
+      });
+    }
+
+    function startGame() {
+      targets = genTargets();
+      hits = new Set();
+      score = 0;
+      timeLeft = 60;
+      gameActive = true;
+
+      document.getElementById('score').textContent = '0';
+      const timerEl = document.getElementById('timer');
+      timerEl.textContent = '60';
+      timerEl.classList.remove('warning');
+      document.getElementById('hits-list').innerHTML = '';
+      document.getElementById('feedback').textContent = '';
+      document.getElementById('feedback').className = '';
+      const inp = document.getElementById('guess-input');
+      inp.value = '';
+      inp.disabled = false;
+      inp.className = '';
+      document.getElementById('submit-btn').disabled = false;
+      document.getElementById('overlay').classList.remove('show');
+
+      drawGrid();
+      clearInterval(timerID);
+      timerID = setInterval(() => {
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+        if (timeLeft <= 10) timerEl.classList.add('warning');
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+
+      inp.focus();
+    }
+
+    function endGame() {
+      clearInterval(timerID);
+      gameActive = false;
+      document.getElementById('guess-input').disabled = true;
+      document.getElementById('submit-btn').disabled = true;
+
+      const msgs = ['再練練，加油！💪', '不錯喔！繼續！🎯', '很厲害！👏', '完美！座標神手！🔥'];
+      const mi = score <= 2 ? 0 : score <= 5 ? 1 : score <= 8 ? 2 : 3;
+      document.getElementById('final-score').textContent = `${score} / 10`;
+      document.getElementById('result-msg').textContent = msgs[mi];
+      document.getElementById('overlay').classList.add('show');
+    }
+
+    function submitGuess() {
+      if (!gameActive) return;
+      const raw = document.getElementById('guess-input').value.trim();
+      const inp = document.getElementById('guess-input');
+      const fb = document.getElementById('feedback');
+      const m = raw.match(/^(-?\d+)\s*,\s*(-?\d+)$/);
+
+      if (!m) {
+        fb.textContent = '格式錯誤，請輸入如：2,-3';
+        fb.className = 'err';
+        inp.classList.add('miss');
+        setTimeout(() => inp.classList.remove('miss'), 400);
+        return;
+      }
+
+      const x = parseInt(m[1]), y = parseInt(m[2]);
+      if (x < -5 || x > 5 || y < -5 || y > 5) {
+        fb.textContent = '超出範圍（x、y 需在 -5 到 5）';
+        fb.className = 'warn';
+        return;
+      }
+
+      const key = `${x},${y}`;
+      inp.value = '';
+
+      if (hits.has(key)) {
+        fb.textContent = `(${x}, ${y}) 已命中過了！`;
+        fb.className = 'warn';
+        inp.focus();
+        return;
+      }
+
+      if (targets.includes(key)) {
+        hits.add(key);
+        score++;
+        document.getElementById('score').textContent = score;
+        fb.textContent = `命中！(${x}, ${y}) ✓`;
+        fb.className = 'hit';
+        inp.classList.add('hit');
+        setTimeout(() => inp.classList.remove('hit'), 400);
+
+        const item = document.createElement('div');
+        item.className = 'hit-item';
+        item.textContent = `▸ (${x}, ${y})`;
+        document.getElementById('hits-list').appendChild(item);
+
+        drawGrid();
+        if (hits.size === 10) endGame();
+      } else {
+        fb.textContent = `未命中 (${x}, ${y})`;
+        fb.className = 'miss';
+        inp.classList.add('miss');
+        setTimeout(() => inp.classList.remove('miss'), 400);
+      }
+
+      inp.focus();
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', submitGuess);
+    document.getElementById('guess-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') submitGuess();
+    });
+    document.getElementById('new-game-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+
+    startGame();
+  </script>
+</body>
+</html>
